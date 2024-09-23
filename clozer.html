@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bootstrap Random Words Replacement</title>
+    <!-- Bootstrap CSS CDN -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <!-- Optional custom styles -->
+    <style>
+        body {
+            padding: 20px;
+        }
+        .random-words {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        .main-text {
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+        .highlight {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .btn-show-answers {
+            margin-left: 10px;
+        }
+    </style>
+    <!-- Load the sentences.js file -->
+    <script src="sentences.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="random-words">
+            <span id="random-words-display"></span>
+            <button class="btn btn-primary btn-show-answers">Show Correct Answers</button>
+        </div>
+        <div class="main-text">
+            <!-- Main text will be displayed here -->
+        </div>
+    </div>
+
+    <!-- JavaScript code -->
+    <script>
+        const NUM_RANDOM_WORDS = 5;
+
+        // Simple function to get URL parameter
+        const sentenceKey = new URLSearchParams(window.location.search).get('sentenceKey');
+
+        // Function to get the sentence array based on the 'sentenceKey' parameter
+        function getSentenceArray() {
+            if (sentenceKey && sentencesRegistry[sentenceKey]) {
+                return sentencesRegistry[sentenceKey];
+            } else {
+                console.error('Invalid sentenceKey or not found in registry.');
+                return [];
+            }
+        }
+
+        function getSecureRandomNumber() {
+            const array = new Uint32Array(1);
+            window.crypto.getRandomValues(array);
+            return array[0] / (0xFFFFFFFF + 1);
+        }
+
+        const articles = ['a', 'an', 'the'];
+        const pronouns = ['i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'hers', 'its', 'our', 'their', 'mine', 'yours', 'hers', 'ours', 'theirs', 'this', 'that', 'these', 'those'];
+        const prepositions = ['of', 'to', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into', 'over', 'after', 'beneath', 'under', 'above', 'across', 'against', 'among', 'around', 'before', 'behind', 'below', 'beside', 'between', 'beyond', 'but', 'during', 'except', 'inside', 'near', 'off', 'through', 'toward', 'upon', 'within', 'without'];
+
+        const conjunctions = ['and', 'but', 'or', 'nor', 'for', 'yet', 'so', 'if', 'although', 'because', 'since', 'unless', 'while'];
+        const commonAdverbs = ['very', 'really', 'extremely', 'almost', 'nearly', 'quite', 'just', 'simply', 'actually'];
+        const auxiliaryVerbs = ['am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'shall', 'would', 'should', 'can', 'could', 'may', 'might', 'must', 'ought'];
+        const interjections = ['oh', 'ah', 'well', 'hey', 'wow', 'oops', 'ugh', 'uh', 'um', 'hmm'];
+
+        const stopWords = articles
+            .concat(pronouns)
+            .concat(prepositions)
+            .concat(conjunctions)
+            .concat(commonAdverbs)
+            .concat(auxiliaryVerbs)
+            .concat(interjections);
+
+        let selectedWords = [];
+        let modifiedText = '';
+        let tokens = [];
+        let wordsToRestore = {};
+
+        window.onload = function() {
+            const sentencesArray = getSentenceArray();
+
+            if (sentencesArray.length === 0) {
+                document.querySelector('.main-text').innerHTML = 'No valid sentence set found. Please check the sentenceKey.';
+                return;
+            }
+
+            const MAIN_TEXT = sentencesArray[Math.floor(getSecureRandomNumber() * sentencesArray.length)];
+
+            // Simplify the logic to sanitize the text
+            let sanitizedText = MAIN_TEXT.replace(/[^a-zA-Z\s]/g, '_');
+
+            // Split into tokens (words, underscores, and spaces)
+            tokens = sanitizedText.match(/\w+|_+|\s+/g);
+
+            let candidateWords = [];
+
+            // Identify candidate words and their positions
+            for (let i = 0; i < tokens.length; i++) {
+                let token = tokens[i];
+                if (/^[a-zA-Z]+$/.test(token)) { // If token is a word
+                    if (!/\d/.test(token)) { // Exclude words with numbers
+                        let wordLower = token.toLowerCase();
+                        if (stopWords.indexOf(wordLower) === -1) { // Not a stop word
+                            candidateWords.push({ word: token, index: i });
+                        }
+                    }
+                }
+            }
+
+            // Shuffle candidate words
+            shuffle(candidateWords);
+
+            // Select NUM_RANDOM_WORDS words
+            selectedWords = candidateWords.slice(0, NUM_RANDOM_WORDS);
+
+            // Keep track of words to restore
+            selectedWords.forEach(function(item) {
+                wordsToRestore[item.index] = item.word;
+                // Replace selected words with "---------------------" in tokens
+                tokens[item.index] = '---------------------';
+            });
+
+            // Create modified text
+            modifiedText = tokens.join('');
+
+            // Shuffle words for display
+            let displayWords = selectedWords.map(item => item.word);
+            shuffle(displayWords);
+
+            // Display the random words at the top
+            let randomWordsDisplay = '[' + displayWords.join(' ') + ']';
+            document.querySelector('#random-words-display').innerHTML = randomWordsDisplay;
+
+            // Display the modified text
+            document.querySelector('.main-text').innerHTML = modifiedText;
+
+            // Set up the event listener for the button
+            document.querySelector('.btn-show-answers').addEventListener('click', function() {
+                // Replace "---------------------" with correct words
+                for (let index in wordsToRestore) {
+                    tokens[index] = '<span class="highlight">' + wordsToRestore[index] + '</span>';
+                }
+                let displayedText = tokens.join('');
+                document.querySelector('.main-text').innerHTML = displayedText;
+            });
+        };
+
+        function shuffle(array) {
+            // Durstenfeld shuffle algorithm
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(getSecureRandomNumber() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+    </script>
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+</body>
+</html>
