@@ -1,4 +1,4 @@
-// sentences.js
+// sentences.js 240923_1813
 const sentencesRegistry = {
     "elasticDemand": [
         `The reason why pushing prices into the elastic range of the demand curve ensures higher revenues is tied to how consumers react to price changes ___ In the inelastic range of the demand curve a price increase results in a smaller percentage decrease in quantity demanded ___ This means people will still buy relatively the same amount even if prices go up but the total revenue might not grow significantly and increasing prices too much can eventually lead to losing customers or overpricing the product compared to competitors`,
