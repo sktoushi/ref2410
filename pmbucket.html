@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Random URL Picker with Buckets (Optimized with LocalStorage)</title>
+    <title>Random URL Picker with Customizable Settings</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -20,7 +20,7 @@
             width: 100%;
             margin-bottom: 20px;
         }
-        .slider-container {
+        .slider-container, .input-container {
             margin-bottom: 20px;
         }
         .slider-label {
@@ -30,53 +30,95 @@
         .btn-export {
             margin-top: 10px;
         }
+        .input-group-text {
+            width: 100px;
+        }
     </style>
     <script>
-        const BASE_URL = "https://sktoushi.github.io/ref2410/viewer.html?&fileName=";
-        const COMMON_PARAMS = "&startIdx=1&endIdx=";
-
-        // Initial list of files [ID, FileName (without .pdf), InitialFrequency]
-        const initialFiles = [
-            [1, "sw-dev-pres-02-sw-dev-models-spiral-model", 11],
-            [2, "sw-dev-pres-02-sw-dev-models-v-model", 10],
-            [3, "sw-dev-pres-02-sw-dev-models-waterfall", 16],
-            [4, "sw-dev-pres-02-sw-life-cycle", 28],
-            [5, "sw-dev-pres-02-sw-life-cycle-phase", 10],
-            [6, "sw-dev-pres-09-risk-mgmt-v2", 20],
-            [7, "sw-dev-pres-10-agile-v1", 75],
-            [8, "sw-dev-pres-11-change-mgmt-v2", 16],
-            [9, "sw-dev-pres-12-depl-v2", 26],
-            [10, "Change-Request", 5],
-            [11, "Ex-01_App_Techn_Specification_v1.0", 52],
-            [12, "Final-Report", 3],
-            [13, "Handover", 6],
-            [14, "pjm-pres-01-agile-project-management", 8],
-            [15, "pjm-pres-01-documentation-process", 9],
-            [16, "pjm-pres-01-intro", 4],
-            [17, "pjm-pres-01-project-management-concepts", 7],
-            [18, "pjm-pres-01-project-management-costs", 4],
-            [19, "pjm-pres-01-risk-management", 13],
-            [20, "pjm-pres-01-software-project-management", 7],
-            [21, "pjm-pres-02-agile-project-management", 7],
-            [22, "pjm-pres-02-course-structure", 6],
-            [23, "pjm-pres-02-documentation-process", 7],
-            [24, "pjm-pres-02-project-management-concepts", 13],
-            [25, "pjm-pres-02-project-management-costs", 7],
-            [26, "pjm-pres-02-software-project-management", 4]
-        ];
-
         let b1 = {}; // Bucket 1 (reviews)
         let b2 = {}; // Bucket 2 (new elements)
         let initB2Total = 0; // Initial total frequency of Bucket 2
         let b1Prob = 0.66; // Default probability for Bucket 1
         let b2Prob = 0.34; // Default probability for Bucket 2
+        let defaultFrequency = 1; // Default frequency
+        let urlPrefix = ''; // URL Prefix
+        let urlSuffix = ''; // URL Suffix
+
+        // Simplified list of URL bodies and frequencies
+        let initialFiles = [
+            // ["urlBody", frequency]
+            ["Change-Request-1-5.pdf&startIdx=1&endIdx=5", 5],
+            ["Ex-01_App_Techn_Specification_v1.0.pdf&startIdx=1&endIdx=52", 52],
+            ["Final-Report-1-3.pdf&startIdx=1&endIdx=3", 3],
+            ["Handover-1-6.pdf&startIdx=1&endIdx=6", 6],
+            ["pjm-pres-01-agile-project-management-1-8.pdf&startIdx=1&endIdx=8", 8],
+            ["pjm-pres-01-documentation-process-1-9.pdf&startIdx=1&endIdx=9", 9],
+            ["pjm-pres-01-intro-1-4.pdf&startIdx=1&endIdx=4", 4],
+            ["pjm-pres-01-project-management-concepts-1-7.pdf&startIdx=1&endIdx=7", 7],
+            ["pjm-pres-01-project-management-costs-1-4.pdf&startIdx=1&endIdx=4", 4],
+            ["pjm-pres-01-risk-management-1-13.pdf&startIdx=1&endIdx=13", 13],
+            ["pjm-pres-01-software-project-management-1-7.pdf&startIdx=1&endIdx=7", 7],
+            ["pjm-pres-02-agile-project-management-1-7.pdf&startIdx=1&endIdx=7", 7],
+            ["pjm-pres-02-course-structure-1-6.pdf&startIdx=1&endIdx=6", 6],
+            ["pjm-pres-02-documentation-process-1-7.pdf&startIdx=1&endIdx=7", 7],
+            ["pjm-pres-02-project-management-concepts-1-13.pdf&startIdx=1&endIdx=13", 13],
+            ["pjm-pres-02-project-management-costs-1-7.pdf&startIdx=1&endIdx=7", 7],
+            ["pjm-pres-02-software-project-management-1-4.pdf&startIdx=1&endIdx=4", 4],
+            ["pjm-pres-03-agile-project-management-1-16.pdf&startIdx=1&endIdx=16", 16],
+            ["pjm-pres-03-project-management-concepts-1-8.pdf&startIdx=1&endIdx=8", 8],
+            ["pjm-pres-03-project-management-costs-1-5.pdf&startIdx=1&endIdx=5", 5],
+            ["pjm-pres-03-software-project-management-1-8.pdf&startIdx=1&endIdx=8", 8],
+            ["pjm-pres-04-agile-project-management-1-10.pdf&startIdx=1&endIdx=10", 10],
+            ["pjm-pres-04-project-management-concepts-1-5.pdf&startIdx=1&endIdx=5", 5],
+            ["pjm-pres-04-project-management-costs-1-4.pdf&startIdx=1&endIdx=4", 4],
+            ["pjm-pres-04-software-project-management-1-10.pdf&startIdx=1&endIdx=10", 10],
+            ["pjm-pres-05-agile-project-management-1-13.pdf&startIdx=1&endIdx=13", 13],
+            ["pjm-pres-05-project-management-costs-1-7.pdf&startIdx=1&endIdx=7", 7],
+            ["pjm-pres-05-software-project-management-1-21.pdf&startIdx=1&endIdx=21", 21],
+            ["pjm-pres-06-agile-project-management-v2-1-8.pdf&startIdx=1&endIdx=8", 8],
+            ["pjm-pres-06-software-project-management-1-9.pdf&startIdx=1&endIdx=9", 9],
+            ["pjm-pres-07-agile-project-management-1-19.pdf&startIdx=1&endIdx=19", 19],
+            ["pjm-pres-07-software-project-management-1-16.pdf&startIdx=1&endIdx=16", 16],
+            ["pjm-pres-08-agile-project-management-1-6.pdf&startIdx=1&endIdx=6", 6],
+            ["pjm-pres-08-software-project-management-1-4.pdf&startIdx=1&endIdx=4", 4],
+            ["pjm-pres-09-agile-project-management-1-10.pdf&startIdx=1&endIdx=10", 10],
+            ["pjm-pres-09-software-project-management-1-8.pdf&startIdx=1&endIdx=8", 8],
+            ["pjm-pres-10-agile-project-management-1-21.pdf&startIdx=1&endIdx=21", 21],
+            ["pjm-pres-10-software-project-management-1-25.pdf&startIdx=1&endIdx=25", 25],
+            ["pjm-pres-11-agile-project-management-1-13.pdf&startIdx=1&endIdx=13", 13],
+            ["pjm-pres-11-software-project-management-1-22.pdf&startIdx=1&endIdx=22", 22],
+            ["pjm-pres-12-software-project-management-1-3.pdf&startIdx=1&endIdx=3", 3],
+            ["Risk+Assessment+Worksheet+and+Management+Plan-1-12.pdf&startIdx=1&endIdx=12", 12],
+            ["Risk+Management+Plan+Preparation+Guidelines-1-17.pdf&startIdx=1&endIdx=17", 17],
+            ["sw-dev-pres-02-sw-dev-models-1-3.pdf&startIdx=1&endIdx=3", 3],
+            ["sw-dev-pres-02-sw-dev-models-agile-model-1-9.pdf&startIdx=1&endIdx=9", 9],
+            ["sw-dev-pres-02-sw-dev-models-incremental-model-1-9.pdf&startIdx=1&endIdx=9", 9],
+            ["sw-dev-pres-02-sw-dev-models-iterative-model-1-7.pdf&startIdx=1&endIdx=7", 7],
+            ["sw-dev-pres-02-sw-dev-models-prototype-model-1-7.pdf&startIdx=1&endIdx=7", 7],
+            ["sw-dev-pres-02-sw-dev-models-RAD-model-1-11.pdf&startIdx=1&endIdx=11", 11],
+            ["sw-dev-pres-02-sw-dev-models-spiral-model-1-11.pdf&startIdx=1&endIdx=11", 11],
+            ["sw-dev-pres-02-sw-dev-models-v-model-1-10.pdf&startIdx=1&endIdx=10", 10],
+            ["sw-dev-pres-02-sw-dev-models-waterfall-1-16.pdf&startIdx=1&endIdx=16", 16],
+            ["sw-dev-pres-02-sw-life-cycle-1-28.pdf&startIdx=1&endIdx=28", 28],
+            ["sw-dev-pres-02-sw-life-cycle-phase-1-10.pdf&startIdx=1&endIdx=10", 10],
+            ["sw-dev-pres-09-risk-mgmt-v2-1-20.pdf&startIdx=1&endIdx=20", 20],
+            ["sw-dev-pres-10-agile-v1-1-75.pdf&startIdx=1&endIdx=75", 75],
+            ["sw-dev-pres-11-change-mgmt-v2-1-16.pdf&startIdx=1&endIdx=16", 16],
+            ["sw-dev-pres-12-depl-v2-1-26.pdf&startIdx=1&endIdx=26", 26]
+        ];
 
         function initBuckets() {
-            initialFiles.forEach(file => {
-                const id = file[0];
-                const freq = file[2];
+            b1 = {};
+            b2 = {};
+            initB2Total = 0;
+
+            initialFiles.forEach((file, index) => {
+                const id = index + 1;
+                const freq = file[1] !== null ? file[1] : defaultFrequency;
                 b2[id] = freq;
                 initB2Total += freq;
+                // Store the ID back into initialFiles for reference
+                file.unshift(id);
             });
         }
 
@@ -85,7 +127,11 @@
                 b1: b1,
                 b2: b2,
                 b1Prob: b1Prob,
-                b2Prob: b2Prob
+                b2Prob: b2Prob,
+                defaultFrequency: defaultFrequency,
+                urlPrefix: urlPrefix,
+                urlSuffix: urlSuffix,
+                initialFiles: initialFiles
             };
             localStorage.setItem('randomUrlPickerState', JSON.stringify(state));
         }
@@ -97,14 +143,25 @@
                 b2 = state.b2 || {};
                 b1Prob = state.b1Prob || 0.66;
                 b2Prob = state.b2Prob || 0.34;
+                defaultFrequency = state.defaultFrequency || 1;
+                urlPrefix = state.urlPrefix || '';
+                urlSuffix = state.urlSuffix || '';
+                initialFiles = state.initialFiles || initialFiles;
+                initB2Total = getTotalFreq(b2);
+            } else {
+                initBuckets();
             }
         }
 
         function resetState() {
             localStorage.removeItem('randomUrlPickerState');
-            b1 = {};
-            b2 = {};
-            initB2Total = 0;
+            defaultFrequency = 1;
+            urlPrefix = '';
+            urlSuffix = '';
+            document.getElementById('defaultFrequency').value = defaultFrequency;
+            document.getElementById('urlPrefix').value = urlPrefix;
+            document.getElementById('urlSuffix').value = urlSuffix;
+            document.getElementById('defaultFrequency').disabled = true;
             b1Prob = 0.66;
             b2Prob = 0.34;
             initBuckets();
@@ -118,7 +175,11 @@
                 b1: b1,
                 b2: b2,
                 b1Prob: b1Prob,
-                b2Prob: b2Prob
+                b2Prob: b2Prob,
+                defaultFrequency: defaultFrequency,
+                urlPrefix: urlPrefix,
+                urlSuffix: urlSuffix,
+                initialFiles: initialFiles
             };
             const stateStr = btoa(JSON.stringify(state));
 
@@ -150,6 +211,15 @@
                             b2 = state.b2 || {};
                             b1Prob = state.b1Prob || 0.66;
                             b2Prob = state.b2Prob || 0.34;
+                            defaultFrequency = state.defaultFrequency || 1;
+                            urlPrefix = state.urlPrefix || '';
+                            urlSuffix = state.urlSuffix || '';
+                            initialFiles = state.initialFiles || initialFiles;
+                            initB2Total = getTotalFreq(b2);
+                            document.getElementById('defaultFrequency').value = defaultFrequency;
+                            document.getElementById('urlPrefix').value = urlPrefix;
+                            document.getElementById('urlSuffix').value = urlSuffix;
+                            document.getElementById('defaultFrequency').disabled = true;
                             saveState();
                             updateDisplay();
                             initializeSlider();
@@ -223,9 +293,8 @@
             saveState();
 
             const fileDetails = initialFiles.find(file => file[0] === selectedId);
-            const fileName = fileDetails[1] + '.pdf';
-            const endIdx = fileDetails[2];
-            const url = BASE_URL + fileName + COMMON_PARAMS + endIdx;
+            const urlBody = fileDetails[1];
+            const url = urlPrefix + urlBody + urlSuffix;
 
             updateDisplay();
             window.open(url, '_blank');
@@ -250,11 +319,60 @@
             document.getElementById('probBucket2').innerText = (100 - initialSliderValue) + '%';
         }
 
+        function toggleDefaultFrequency() {
+            const dfInput = document.getElementById('defaultFrequency');
+            if (dfInput.disabled) {
+                dfInput.disabled = false;
+            } else {
+                dfInput.disabled = true;
+                dfInput.value = defaultFrequency;
+            }
+        }
+
+        function saveDefaultFrequency() {
+            const dfInput = document.getElementById('defaultFrequency');
+            const dfValue = dfInput.value.trim();
+            if (dfValue !== '') {
+                const df = parseInt(dfValue);
+                if (!isNaN(df) && df > 0) {
+                    defaultFrequency = df;
+                    // Apply default frequency to elements with null frequency
+                    initialFiles.forEach(file => {
+                        if (file[2] === null) {
+                            file[2] = defaultFrequency;
+                            const id = file[0];
+                            b2[id] = defaultFrequency;
+                            initB2Total = getTotalFreq(b2);
+                        }
+                    });
+                    dfInput.disabled = true;
+                    saveState();
+                    updateDisplay();
+                    alert('Default frequency saved and applied.');
+                } else {
+                    alert('Please enter a valid positive integer for default frequency.');
+                }
+            } else {
+                alert('Default frequency cannot be empty.');
+            }
+        }
+
+        function saveUrlPrefixSuffix() {
+            urlPrefix = document.getElementById('urlPrefix').value.trim();
+            urlSuffix = document.getElementById('urlSuffix').value.trim();
+            saveState();
+            alert('URL prefix and suffix saved.');
+        }
+
         function main() {
-            initBuckets();
             loadState();
             updateDisplay();
             initializeSlider();
+            // Set initial values for inputs
+            document.getElementById('defaultFrequency').value = defaultFrequency;
+            document.getElementById('urlPrefix').value = urlPrefix;
+            document.getElementById('urlSuffix').value = urlSuffix;
+            document.getElementById('defaultFrequency').disabled = true;
         }
 
         window.onload = main;
@@ -263,6 +381,24 @@
 <body>
     <div class="container">
         <h1 class="text-center">Random URL Picker</h1>
+
+        <div class="input-container">
+            <label class="form-label">URL Prefix:</label>
+            <input type="text" class="form-control" id="urlPrefix" placeholder="Enter URL Prefix">
+            <label class="form-label">URL Suffix:</label>
+            <input type="text" class="form-control" id="urlSuffix" placeholder="Enter URL Suffix">
+            <button class="btn btn-secondary mt-2" onclick="saveUrlPrefixSuffix()">Save URL Prefix/Suffix</button>
+        </div>
+
+        <div class="input-container">
+            <label class="form-label">Default Frequency:</label>
+            <div class="input-group">
+                <input type="number" class="form-control" id="defaultFrequency" value="1" min="1" disabled>
+                <button class="btn btn-secondary" onclick="toggleDefaultFrequency()">Edit</button>
+                <button class="btn btn-primary" onclick="saveDefaultFrequency()">Save</button>
+            </div>
+        </div>
+
         <div class="slider-container">
             <label for="probSlider" class="form-label">Adjust Probabilities:</label>
             <input type="range" class="form-range" id="probSlider" min="0" max="100" value="66" oninput="updateProbabilities()">
@@ -271,7 +407,9 @@
                 <span>Bucket 2: <span id="probBucket2">34%</span></span>
             </div>
         </div>
+
         <button class="btn btn-primary btn-draw" onclick="pickRandom()">Draw and Open URL</button>
+
         <div class="progress-container">
             <label for="gauge" class="form-label">Progress (Bucket 1 vs. Total):</label>
             <progress id="gauge" class="form-range w-100" value="0" max="100"></progress>
@@ -279,6 +417,7 @@
                 <span id="gaugeText">0%</span>
             </div>
         </div>
+
         <div class="row">
             <div class="col text-center">
                 <h5>Bucket 1 Total Frequency</h5>
@@ -289,6 +428,7 @@
                 <span id="bucket2Freq">0</span>
             </div>
         </div>
+
         <div class="text-center">
             <button class="btn btn-secondary btn-export" onclick="exportState()">Export State</button>
             <button class="btn btn-secondary btn-export" onclick="importState()">Import State</button>
