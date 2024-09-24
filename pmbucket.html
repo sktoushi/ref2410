@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Random URL Picker with Buckets (Optimized with LocalStorage)</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 600px;
+            margin-top: 30px;
+        }
+        .progress-container {
+            margin-bottom: 20px;
+        }
+        .btn-draw {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .slider-container {
+            margin-bottom: 20px;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+        }
+        .btn-export {
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        const BASE_URL = "https://sktoushi.github.io/ref2410/viewer.html?&fileName=";
+        const COMMON_PARAMS = "&startIdx=1&endIdx=";
+
+        // Initial list of files [ID, FileName (without .pdf), InitialFrequency]
+        const initialFiles = [
+            [1, "sw-dev-pres-02-sw-dev-models-spiral-model", 11],
+            [2, "sw-dev-pres-02-sw-dev-models-v-model", 10],
+            [3, "sw-dev-pres-02-sw-dev-models-waterfall", 16],
+            [4, "sw-dev-pres-02-sw-life-cycle", 28],
+            [5, "sw-dev-pres-02-sw-life-cycle-phase", 10],
+            [6, "sw-dev-pres-09-risk-mgmt-v2", 20],
+            [7, "sw-dev-pres-10-agile-v1", 75],
+            [8, "sw-dev-pres-11-change-mgmt-v2", 16],
+            [9, "sw-dev-pres-12-depl-v2", 26],
+            [10, "Change-Request", 5],
+            [11, "Ex-01_App_Techn_Specification_v1.0", 52],
+            [12, "Final-Report", 3],
+            [13, "Handover", 6],
+            [14, "pjm-pres-01-agile-project-management", 8],
+            [15, "pjm-pres-01-documentation-process", 9],
+            [16, "pjm-pres-01-intro", 4],
+            [17, "pjm-pres-01-project-management-concepts", 7],
+            [18, "pjm-pres-01-project-management-costs", 4],
+            [19, "pjm-pres-01-risk-management", 13],
+            [20, "pjm-pres-01-software-project-management", 7],
+            [21, "pjm-pres-02-agile-project-management", 7],
+            [22, "pjm-pres-02-course-structure", 6],
+            [23, "pjm-pres-02-documentation-process", 7],
+            [24, "pjm-pres-02-project-management-concepts", 13],
+            [25, "pjm-pres-02-project-management-costs", 7],
+            [26, "pjm-pres-02-software-project-management", 4]
+        ];
+
+        let b1 = {}; // Bucket 1 (reviews)
+        let b2 = {}; // Bucket 2 (new elements)
+        let initB2Total = 0; // Initial total frequency of Bucket 2
+        let b1Prob = 0.66; // Default probability for Bucket 1
+        let b2Prob = 0.34; // Default probability for Bucket 2
+
+        function initBuckets() {
+            initialFiles.forEach(file => {
+                const id = file[0];
+                const freq = file[2];
+                b2[id] = freq;
+                initB2Total += freq;
+            });
+        }
+
+        function saveState() {
+            const state = {
+                b1: b1,
+                b2: b2,
+                b1Prob: b1Prob,
+                b2Prob: b2Prob
+            };
+            localStorage.setItem('randomUrlPickerState', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const state = JSON.parse(localStorage.getItem('randomUrlPickerState'));
+            if (state) {
+                b1 = state.b1 || {};
+                b2 = state.b2 || {};
+                b1Prob = state.b1Prob || 0.66;
+                b2Prob = state.b2Prob || 0.34;
+            }
+        }
+
+        function resetState() {
+            localStorage.removeItem('randomUrlPickerState');
+            b1 = {};
+            b2 = {};
+            initB2Total = 0;
+            b1Prob = 0.66;
+            b2Prob = 0.34;
+            initBuckets();
+            updateDisplay();
+            initializeSlider();
+            alert('State has been reset.');
+        }
+
+        function exportState() {
+            const state = {
+                b1: b1,
+                b2: b2,
+                b1Prob: b1Prob,
+                b2Prob: b2Prob
+            };
+            const stateStr = btoa(JSON.stringify(state));
+
+            // Get current date and time for filename
+            const now = new Date();
+            const timestamp = now.toISOString().replace(/[:.]/g, '-');
+            const filename = `state_${timestamp}.txt`;
+
+            const blob = new Blob([stateStr], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+        }
+
+        function importState() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.txt';
+            fileInput.onchange = e => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = event => {
+                        try {
+                            const stateStr = event.target.result;
+                            const state = JSON.parse(atob(stateStr));
+                            b1 = state.b1 || {};
+                            b2 = state.b2 || {};
+                            b1Prob = state.b1Prob || 0.66;
+                            b2Prob = state.b2Prob || 0.34;
+                            saveState();
+                            updateDisplay();
+                            initializeSlider();
+                            alert('State has been imported successfully.');
+                        } catch (e) {
+                            alert('Invalid state data.');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            fileInput.click();
+        }
+
+        function getTotalFreq(bucket) {
+            return Object.values(bucket).reduce((sum, freq) => sum + freq, 0);
+        }
+
+        function updateProbabilities() {
+            const sliderValue = parseInt(document.getElementById('probSlider').value);
+            b1Prob = sliderValue / 100;
+            b2Prob = 1 - b1Prob;
+            document.getElementById('probBucket1').innerText = (b1Prob * 100).toFixed(0) + '%';
+            document.getElementById('probBucket2').innerText = (b2Prob * 100).toFixed(0) + '%';
+            saveState();
+        }
+
+        function pickRandom() {
+            updateProbabilities(); // Ensure probabilities are up to date
+
+            const rand = Math.random();
+            let selectedBucket = rand < b1Prob ? 'b1' : 'b2';
+            let bucket = selectedBucket === 'b1' ? b1 : b2;
+
+            if (getTotalFreq(bucket) === 0) {
+                bucket = selectedBucket === 'b1' ? b2 : b1;
+            }
+
+            if (getTotalFreq(bucket) === 0) {
+                alert('Both buckets are empty!');
+                return;
+            }
+
+            const cumulativeFreqs = [];
+            let cumulative = 0;
+            for (const id in bucket) {
+                cumulative += bucket[id];
+                cumulativeFreqs.push([parseInt(id), cumulative]);
+            }
+
+            const totalFreq = cumulative;
+            const randomPick = Math.floor(Math.random() * totalFreq);
+            let selectedId;
+            for (const [id, cumFreq] of cumulativeFreqs) {
+                if (randomPick < cumFreq) {
+                    selectedId = id;
+                    break;
+                }
+            }
+
+            if (selectedId in b1) {
+                b1[selectedId] += 1;
+            } else {
+                b1[selectedId] = 1;
+            }
+
+            if (selectedId in b2) {
+                b2[selectedId] = Math.max(1, b2[selectedId] - 1);
+            }
+
+            saveState();
+
+            const fileDetails = initialFiles.find(file => file[0] === selectedId);
+            const fileName = fileDetails[1] + '.pdf';
+            const endIdx = fileDetails[2];
+            const url = BASE_URL + fileName + COMMON_PARAMS + endIdx;
+
+            updateDisplay();
+            window.open(url, '_blank');
+        }
+
+        function updateDisplay() {
+            const b1Total = getTotalFreq(b1);
+            const b2Total = getTotalFreq(b2);
+            let progress = (b1Total / initB2Total) * 100;
+            if (progress > 100) progress = 100;
+
+            document.getElementById('gauge').value = progress;
+            document.getElementById('gaugeText').innerText = progress.toFixed(2) + '%';
+            document.getElementById('bucket1Freq').innerText = b1Total;
+            document.getElementById('bucket2Freq').innerText = b2Total;
+        }
+
+        function initializeSlider() {
+            const initialSliderValue = (b1Prob * 100).toFixed(0);
+            document.getElementById('probSlider').value = initialSliderValue;
+            document.getElementById('probBucket1').innerText = initialSliderValue + '%';
+            document.getElementById('probBucket2').innerText = (100 - initialSliderValue) + '%';
+        }
+
+        function main() {
+            initBuckets();
+            loadState();
+            updateDisplay();
+            initializeSlider();
+        }
+
+        window.onload = main;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Random URL Picker</h1>
+        <div class="slider-container">
+            <label for="probSlider" class="form-label">Adjust Probabilities:</label>
+            <input type="range" class="form-range" id="probSlider" min="0" max="100" value="66" oninput="updateProbabilities()">
+            <div class="slider-label">
+                <span>Bucket 1: <span id="probBucket1">66%</span></span>
+                <span>Bucket 2: <span id="probBucket2">34%</span></span>
+            </div>
+        </div>
+        <button class="btn btn-primary btn-draw" onclick="pickRandom()">Draw and Open URL</button>
+        <div class="progress-container">
+            <label for="gauge" class="form-label">Progress (Bucket 1 vs. Total):</label>
+            <progress id="gauge" class="form-range w-100" value="0" max="100"></progress>
+            <div class="text-center">
+                <span id="gaugeText">0%</span>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col text-center">
+                <h5>Bucket 1 Total Frequency</h5>
+                <span id="bucket1Freq">0</span>
+            </div>
+            <div class="col text-center">
+                <h5>Bucket 2 Total Frequency</h5>
+                <span id="bucket2Freq">0</span>
+            </div>
+        </div>
+        <div class="text-center">
+            <button class="btn btn-secondary btn-export" onclick="exportState()">Export State</button>
+            <button class="btn btn-secondary btn-export" onclick="importState()">Import State</button>
+            <button class="btn btn-danger btn-export" onclick="resetState()">Reset State</button>
+        </div>
+    </div>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-wpsYrgENSMwvWDnK+0hqyc+8zhu+uZdzsOCS8KQmS1b2y2lZjY0Chvh6e+GD44G" crossorigin="anonymous"></script>
+</body>
+</html>
